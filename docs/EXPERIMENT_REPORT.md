@@ -1,6 +1,6 @@
 # Annotation-free prioritization of structurally divergent transcript isoforms
 
-**NoHarm: a passive detector of translational diversity via frame-economy cross-harm**
+**NoHarm: a uniform-baseline scanner for isoform codon-landscape divergence**
 
 *Research preview / computational note — June 2026*
 
@@ -8,11 +8,11 @@
 
 ## Abstract
 
-We describe a zero-training computational method that scans human protein-coding transcript isoforms and ranks genes by how divergent their isoform codon landscapes are, without using expression data, disease labels, gene ontologies, or protein domain annotations. The detector maintains a finite memory of vector frames, merges similar inputs, prunes weakly reinforced frames, and reads the surviving centroids. Isoform cross-harm — the L2 distance between an isoform's 64-dimensional codon-frequency vector and a uniform expectation — is computed per isoform; per-gene divergence is the range across isoforms.
+We describe a zero-training computational method that scans human protein-coding transcript isoforms and ranks genes by how divergent their isoform codon landscapes are, without using expression data, disease labels, gene ontologies, or protein domain annotations. Version 0.1 uses a deliberately simple reading: each isoform is encoded as a 64-dimensional codon-frequency landscape, compared with a shared uniform expectation, and reduced to a structural residue. Per-gene divergence is the range of this residue across isoforms.
 
 A scan of 245,535 GENCODE v49 transcripts (17,903 multi-isoform genes) yields an extreme-tail distribution: only 29 genes exceed Δ|codon-harm| > 0.1 (0.16% of multi-isoform genes; P99 = 0.0586). Matched null controls (isoform count, transcript length range, mean codon-harm; GC matching not yet included) confirm that the top-ranked genes are not explained by these covariates alone. The top 20 genes by z-score include well-characterized disease-associated loci (MED12, HNRNPA1, SLC39A11) as well as poorly characterized genes (ANKRD18B, SH3BGR, SEPTIN11, PAXBP1) that constitute the method's independent predictions. Exploratory keyword enrichment suggests over-representation of transcriptional regulators.
 
-The method's reading can be interpreted simply: **Δ|codon-harm| measures how different the codon landscapes are that the translation machinery must process across isoforms of the same gene.** High divergence implies that isoform choice is likely to have functional consequences; low divergence means no large structural difference is detected in this specific 3-mer frame-economy coordinate (functional differences through expression, domains, localization, or regulation may still exist).
+The method's reading can be interpreted simply: **Δ|codon-harm| measures how different the codon-landscape residues of isoforms from the same gene are after projection onto a shared baseline.** High divergence suggests a gene whose isoforms may deserve functional follow-up; low divergence means no large difference is detected in this specific 3-mer coordinate (functional differences through expression, domains, localization, translation, or regulation may still exist).
 
 ---
 
@@ -20,17 +20,17 @@ The method's reading can be interpreted simply: **Δ|codon-harm| measures how di
 
 ### 1.1 What Δ|codon-harm| measures
 
-A gene's coding sequence is read codon-by-codon. Each codon is mapped to a 64-dimensional frequency vector (A/C/G/T at three positions). The expected codon distribution under uniform synonymous usage provides a common baseline. The L2 distance between actual and expected is the per-isoform codon-harm.
+Each transcript isoform is read as non-overlapping 3-mers in frame 0. Each window is mapped to a 64-dimensional frequency vector (A/C/G/T at three positions). A uniform 64-bin expectation provides a common baseline. The L2 distance between actual and expected is the per-window codon-harm; the per-isoform score is the mean of this residue over windows.
 
 Per-gene divergence (Δ|codon-harm|) is the range of this value across a gene's isoforms.
 
 The reading can be stated in one sentence:
 
-> **Δ|codon-harm| measures how different the codon landscapes are that the translation machinery must process across isoforms of the same gene.**
+> **Δ|codon-harm| measures how different the codon-landscape residues of isoforms from the same gene are after projection onto a shared baseline.**
 
-High divergence → isoform choice changes the translational pressure landscape → the resulting proteins are more likely to differ in folding, stability, localization, or half-life → isoform selection has functional consequences → phenotypic impact is more likely.
+High divergence → isoform choice changes the gene's codon-landscape residue → the gene enters a small extreme tail worth biological follow-up. Translation-facing consequences are plausible for some candidates, but they are not directly modeled by v0.1.
 
-Low divergence → no large structural difference is detected in this specific 3-mer frame-economy coordinate. This does NOT mean the isoforms are functionally identical — differences in expression level, protein domains, subcellular localization, or regulatory motifs may still exist. It means only that the codon-level structural divergence is not extreme.
+Low divergence → no large structural difference is detected in this specific 3-mer coordinate. This does NOT mean the isoforms are functionally identical — differences in expression level, protein domains, subcellular localization, translation efficiency, or regulatory motifs may still exist. It means only that the codon-landscape residue is not extreme.
 
 ### 1.2 What it is not
 
@@ -38,6 +38,7 @@ Low divergence → no large structural difference is detected in this specific 3
 - NOT a measure of expression or translation efficiency
 - NOT a disease predictor
 - NOT dependent on any biological database, annotation, or prior knowledge
+- NOT yet a gene/transcript-to-CDS/protein alignment model
 
 It is a **structural coordinate** — an orthogonal dimension that no existing method measures.
 
@@ -52,12 +53,11 @@ transcript sequence
   → sliding window (30 codons, stride 6)
   → 64-dim codon-frequency vector vs uniform expectation
   → L2 distance = per-window |codon-harm|
-  → Geruon frame economy (merge, co-occur, prune, τ, L3)
-  → per-isoform mean |codon-harm| + τ
+  → per-isoform mean |codon-harm| = structural residue
   → per-gene: range(|codon-harm|) across isoforms = Δ|codon-harm|
 ```
 
-The Geruon (finite-memory centroid detector) provides a secondary readout τ (endogenous time) that tracks the frame economy's internal dynamics. In this report, τ is reported alongside |codon-harm| but the primary ranking metric is Δ|codon-harm|.
+The full research lineage includes a Geruon frame-economy readout, but the public v0.1 scanner is intentionally narrower: it reproduces the primary Δ|codon-harm| ranking coordinate. τ is treated as secondary and should not be overinterpreted in this standalone report.
 
 ### 2.2 Data
 
@@ -164,7 +164,7 @@ NoHarm identifies four genes with extreme isoform divergence whose biological fu
 
 **What is known**: Contains a DUF3496 domain (Domain of Unknown Function). Only one functional study exists (promoter hypermethylation in lung cancer). No GO biological process annotation. Subcellular localization unknown.
 
-**Prediction**: The extreme isoform-level codon divergence (comparable to HNRNPA1 at 3.4× expected) implies that ANKRD18B isoforms, if translated, are likely to have functionally distinct properties. Tissue-specific isoform expression and protein-level validation are warranted.
+**Prediction**: The extreme isoform-level codon-landscape divergence (comparable to HNRNPA1 at 3.4× expected) suggests that ANKRD18B isoforms may deserve functional follow-up. Tissue-specific isoform expression and protein-level validation are warranted.
 
 ### Prediction 2: SH3BGR (z=9.62, obs/exp=3.0×, pool=88)
 
@@ -278,7 +278,7 @@ Adversarial perturbations (train-then-attack with L3 chain pre-building) confirm
 - Top genes show clear biological texture (MED12, HNRNPA1, SLC39A11)
 - Unknown/cold candidates identified (ANKRD18B, SH3BGR, SEPTIN11, PAXBP1)
 - Orthogonal screening coordinate — no dependence on expression, disease labels, GO, or domains
-- One-sentence interpretability: "measures translational diversity across isoforms"
+- One-sentence interpretability: "measures isoform codon-landscape divergence against a shared baseline"
 
 ---
 

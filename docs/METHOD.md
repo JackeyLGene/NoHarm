@@ -9,8 +9,11 @@ The scanner does not claim to discover "harm" in the moral or clinical sense.
 It measures divergence among transcript isoforms within the same gene in a
 fixed sequence coordinate. The intended reading is:
 
-> large isoform divergence may mark translation-facing structural choices worth
-> biological follow-up.
+> large isoform divergence may mark codon-landscape differences worth biological
+> follow-up.
+
+Version 0.1 uses a shared uniform codon baseline. It does not directly compare
+gene, transcript, CDS, and protein layers.
 
 ## Fixed Encoder
 
@@ -31,9 +34,8 @@ ch_range = max(mean_ch over isoforms) - min(mean_ch over isoforms)
 
 The highest and lowest scoring isoforms are reported as the primary contrast
 pair. The current public scanner reproduces the primary `ch_range` ranking
-coordinate used in the June 2026 GENCODE scan. Full research Geruon tau/L3
-dynamics are documented in the EE research code; this standalone repo uses a
-lightweight tau trace for reporting.
+coordinate used in the June 2026 GENCODE scan. This is a residue-ranking tool,
+not yet the deeper multi-layer NoHarm alignment model.
 
 ## What The Score Is Not
 
@@ -43,6 +45,7 @@ lightweight tau trace for reporting.
 - Not conservation.
 - Not a disease predictor.
 - Not a clinical interpretation.
+- Not a direct RNA-to-protein translation model.
 
 ## Immediate Controls Needed For Publications
 
@@ -59,3 +62,9 @@ Before making strong biological claims, report:
 - `EXPERIMENT_REPORT.md`: full research-preview report.
 - `TOP20_ANNOTATION.md`: corrected top-20 table with p-value caveats.
 - `WORKFLOW.md`: one-command workflow and processing diagram.
+
+## Broader Theory
+
+The public tool is intentionally usable as a small bioinformatics scanner.
+Readers interested in the frame-economy theory behind the name can browse:
+https://jackeylgene.github.io/GBE

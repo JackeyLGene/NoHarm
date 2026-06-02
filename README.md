@@ -3,7 +3,7 @@
 Annotation-free prioritization of structurally divergent transcript isoforms.
 
 NoHarm is a lightweight bioinformatics scanner for ranking genes whose transcript
-isoforms diverge strongly in a fixed 3-mer frame-economy coordinate. It is
+isoforms diverge strongly in a fixed 3-mer codon-landscape coordinate. It is
 designed as a low-cost triage layer: run it on a transcript FASTA, get a short
 list of genes and isoform pairs that may deserve biological follow-up.
 
@@ -13,27 +13,26 @@ mechanisms. It produces a reproducible structural ranking.
 ## At A Glance
 
 ```mermaid
-flowchart LR
-    A["Transcript FASTA"] --> B["Group isoforms by gene"]
-    B --> C["30-codon windows"]
-    C --> D["64-dim 3-mer vector"]
-    D --> E["Uniform baseline"]
-    E --> F["Per-isoform codon-harm"]
-    F --> G["Per-gene divergence"]
-    G --> H["Candidate shortlist"]
+flowchart TD
+    A["Transcript isoforms"] --> B["Encode each isoform<br/>as 3-mer/codon windows"]
+    B --> C["Compare with a shared baseline<br/>uniform 64-bin expectation"]
+    C --> D["Read structural residue<br/>mean |codon-harm| per isoform"]
+    D --> E["Compare residues within each gene<br/>max-min divergence"]
+    E --> F["Rank candidate genes<br/>and contrast isoform pairs"]
 ```
 
 In one sentence:
 
-> NoHarm asks how different the codon landscapes are that translation must
-> process across isoforms of the same gene.
+> NoHarm asks how much the codon landscapes of isoforms from the same gene
+> differ after being projected onto a shared baseline.
 
 ## Why This Exists
 
 Long-read transcriptomics and modern genome annotation produce very large
 isoform sets. The hard question is often not "are there isoforms?", but:
 
-> Which isoforms are most likely to change the translation-facing structure of a gene?
+> Which genes have isoforms whose codon landscapes diverge enough to deserve a
+> closer look?
 
 NoHarm provides one annotation-free coordinate for that triage problem.
 
@@ -72,7 +71,7 @@ Key columns:
 
 - `ch_range`: max isoform mean cross-harm minus min isoform mean cross-harm.
 - `ch_std`: within-gene dispersion of isoform scores.
-- `tau_range`: spread in the lightweight frame-economy trace.
+- `tau_range`: spread in the lightweight residue trace.
 - `min_ch_transcript`, `max_ch_transcript`: the top contrast pair.
 
 ## Research Preview Results
@@ -112,16 +111,20 @@ semantics are used by the default ranking.
 
 NoHarm should be read as:
 
-> An annotation-free prioritization layer for transcript isoform structural divergence.
+> An annotation-free prioritization layer for transcript isoform codon-landscape divergence.
 
 The score is a candidate generator. Known high-ranking genes can calibrate the
 signal; under-characterized high-ranking genes become follow-up candidates.
+Because codon usage can influence downstream biology, high-ranking genes may be
+useful candidates for follow-up, but the v0.1 scanner does not directly model
+gene-to-protein translation.
 
 ## Important Caveats
 
 - The standalone public scanner reproduces the primary `Delta |codon-harm|`
-  ranking coordinate. The full research Geruon tau/L3 dynamics remain in the EE
-  research code; this repo uses a lightweight tau trace for reporting.
+  ranking coordinate. It compares isoforms to a shared uniform baseline; it does
+  not yet implement the deeper gene/transcript-to-CDS/protein alignment planned
+  for later NoHarm work.
 - Matched null controls currently cover isoform count, transcript length range,
   and mean codon-harm. GC matching is not yet included.
 - CDS/full comparisons currently use a longest-ORF proxy, not GTF-annotated CDS
@@ -139,6 +142,12 @@ Planned next steps:
 - CDS-only and UTR-aware modes.
 - Gene-level codex construction from isoform traces.
 - Optional protein/topology annotation joins.
+
+## Related Work
+
+NoHarm is a practical tool extracted from a broader frame-economy research
+program. Readers interested in the underlying theory can browse the GBE project:
+[https://jackeylgene.github.io/GBE](https://jackeylgene.github.io/GBE).
 
 ## License
 

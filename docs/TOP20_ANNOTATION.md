@@ -58,7 +58,8 @@ annotations before stronger biological claims.
 The top tail contains known biologically structured loci:
 
 - **SLC39A11 / ZIP11**: zinc transporter; strongest full-transcript divergence;
-  signal appears mostly outside the ORF proxy.
+  ORF-proxy comparison suggests the signal is mostly outside the ORF-proxy
+  coordinate.
 - **MED12**: mediator complex subunit; ORF-associated divergence; known disease
   and drug-resistance relevance.
 - **SRP14**: signal-recognition particle component; ORF-associated divergence.

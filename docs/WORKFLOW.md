@@ -4,19 +4,21 @@ NoHarm is designed as a low-friction triage layer for transcript isoform sets.
 The first public workflow fixes the encoder so users do not need to tune a
 model before seeing whether their data have an extreme isoform-divergence tail.
 
+Version 0.1 is intentionally simple: it compares each isoform against a shared
+uniform codon baseline, then compares the resulting structural residues within
+each gene. It is not yet a gene-to-CDS or RNA-to-protein translation-alignment
+model.
+
 ## Processing Diagram
 
 ```mermaid
 flowchart TD
-    A["Transcript FASTA<br/>(gene/transcript headers)"] --> B["Group transcripts<br/>by gene"]
-    B --> C["Slide 30-codon windows<br/>stride 6"]
-    C --> D["Encode each window<br/>as 64-dim 3-mer frequency"]
-    D --> E["Subtract uniform baseline<br/>(1/64 per codon bin)"]
-    E --> F["Compute window |codon-harm|<br/>L2 distance"]
-    F --> G["Aggregate per isoform<br/>mean |codon-harm| + tau trace"]
-    G --> H["Aggregate per gene<br/>Delta = max isoform - min isoform"]
-    H --> I["Matched null controls<br/>n isoforms, length range, mean harm"]
-    I --> J["Rank genes and isoform pairs<br/>candidate shortlist"]
+    A["Isoform FASTA"] --> B["Group isoforms<br/>by gene"]
+    B --> C["Encode each isoform<br/>30-codon 3-mer windows"]
+    C --> D["Compare with shared baseline<br/>uniform 64-bin expectation"]
+    D --> E["Read structural residue<br/>mean |codon-harm|"]
+    E --> F["Compare residues within gene<br/>Delta = max - min"]
+    F --> G["Rank genes and contrast pairs"]
 ```
 
 ## Minimal Command
@@ -61,19 +63,27 @@ tx2              geneA
 
 The primary score asks:
 
-> How different are the codon landscapes that translation must process across
-> isoforms of the same gene?
+> How different are the codon-landscape residues of isoforms from the same gene
+> after projection onto a shared baseline?
 
-High values nominate genes where isoform choice may produce translation-facing
-structural consequences. Low values mean no large difference is detected in this
-specific 3-mer coordinate; they do not prove functional equivalence.
+High values nominate genes where isoform choice may produce a large codon-level
+structural difference. Low values mean no large difference is detected in this
+specific 3-mer coordinate; they do not prove functional equivalence. Translation
+effects are a possible follow-up interpretation, not something directly modeled
+by the v0.1 scanner.
 
 ## Release Caveats
 
 - Current public scanner reproduces the primary `Delta |codon-harm|` ranking.
-- Full research Geruon tau/L3 behavior is documented in the EE research code;
-  the standalone repo uses a lightweight tau trace for reporting.
+- It compares isoforms with a shared uniform baseline. It does not yet implement
+  the deeper gene/transcript-to-CDS/protein alignment envisioned for later
+  NoHarm work.
 - Matched null and CDS/full controls are currently documented in
   `docs/EXPERIMENT_REPORT.md`; publication-grade biological claims require GC
   matching, GTF-based CDS extraction, and formal GO enrichment.
 
+## Broader Theory
+
+This repo is meant to be usable without accepting any broader theory. Readers
+who want the conceptual background can browse the GBE project:
+[https://jackeylgene.github.io/GBE](https://jackeylgene.github.io/GBE).

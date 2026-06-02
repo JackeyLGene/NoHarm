@@ -13,12 +13,12 @@ model.
 
 ```mermaid
 flowchart TD
-    A["Isoform FASTA"] --> B["Group isoforms<br/>by gene"]
-    B --> C["Encode each isoform<br/>30-codon 3-mer windows"]
-    C --> D["Compare with shared baseline<br/>uniform 64-bin expectation"]
-    D --> E["Read structural residue<br/>mean |codon-harm|"]
-    E --> F["Compare residues within gene<br/>Delta = max - min"]
-    F --> G["Rank genes and contrast pairs"]
+    A["Transcript isoforms"] --> B["Group isoforms<br/>by gene"]
+    B --> C["Encode each isoform<br/>as 3-mer/codon windows"]
+    C --> D["Compare with a shared baseline<br/>uniform 64-bin expectation"]
+    D --> E["Read structural residue<br/>mean |codon-harm| per isoform"]
+    E --> F["Compare residues within each gene<br/>max-min divergence"]
+    F --> G["Rank candidate genes<br/>and contrast isoform pairs"]
 ```
 
 ## Minimal Command

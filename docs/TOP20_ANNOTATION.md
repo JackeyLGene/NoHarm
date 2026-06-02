@@ -26,9 +26,9 @@ read as the main effect-size statistic rather than as conventional significance.
 | 4 | FLOT1 | 82 | 0.2037 | 12.39 | <0.091 | 10 | 0.30 | Flotillin / lipid raft |
 | 5 | HNRNPA1 | 77 | 0.2073 | 12.28 | <0.040 | 24 | 0.77 | Core splicing factor |
 | 6 | HLA-F | 52 | 0.1855 | 10.89 | <0.009 | 120 | 0.38 | MHC class I |
-| 7 | ANKRD18B | 7 | 0.1235 | 10.77 | <0.003 | 337 | 1.08 | Poorly characterized |
+| 7 | **ANKRD18B** | 7 | 0.1235 | 10.77 | <0.003 | 337 | 1.08 | **Poorly characterized** |
 | 8 | CARM1 | 9 | 0.1171 | 9.80 | <0.003 | 388 | 0.30 | Arginine methyltransferase |
-| 9 | SH3BGR | 14 | 0.1073 | 9.62 | <0.012 | 88 | 0.65 | Poorly characterized / muscle |
+| 9 | **SH3BGR** | 14 | 0.1073 | 9.62 | <0.012 | 88 | 0.65 | **Poorly characterized / muscle** |
 | 10 | SUPT5H | 12 | 0.1251 | 9.30 | <0.011 | 90 | 1.25 | Transcription elongation |
 | 11 | HGS | 72 | 0.1668 | 9.15 | <0.059 | 16 | 0.96 | Endosomal signaling |
 | 12 | TUBGCP5 | 25 | 0.1108 | 8.97 | <0.003 | 354 | 0.27 | Microtubule complex |
@@ -36,10 +36,10 @@ read as the main effect-size statistic rather than as conventional significance.
 | 14 | SLC12A5 | 12 | 0.1420 | 8.70 | <0.009 | 109 | 1.14 | K-Cl cotransporter |
 | 15 | G3BP2 | 94 | 0.1656 | 8.35 | <0.039 | 25 | 1.12 | Stress granule assembly |
 | 16 | PRG4 | 12 | 0.1131 | 8.12 | <0.048 | 20 | 1.00 | Lubricin |
-| 17 | SEPTIN11 | 10 | 0.0947 | 7.92 | <0.003 | 351 | 0.82 | Poorly characterized septin |
+| 17 | **SEPTIN11** | 10 | 0.0947 | 7.92 | <0.003 | 351 | 0.82 | **Poorly characterized septin** |
 | 18 | FBL | 35 | 0.0867 | 7.78 | <0.063 | 15 | 1.23 | Fibrillarin / rRNA processing |
 | 19 | MT3 | 5 | 0.0512 | 7.68 | <0.091 | 10 | 1.91 | Metallothionein 3 |
-| 20 | PAXBP1 | 10 | 0.0857 | 7.33 | <0.003 | 442 | 1.08 | PAX-binding protein |
+| 20 | **PAXBP1** | 10 | 0.0857 | 7.33 | <0.003 | 442 | 1.08 | **PAX-binding protein / emerging candidate** |
 
 ## CDS/full Ratio
 

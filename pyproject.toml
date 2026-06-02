@@ -23,5 +23,8 @@ classifiers = [
 [project.scripts]
 noharm = "noharm.cli:main"
 
+[project.optional-dependencies]
+test = ["pytest"]
+
 [tool.setuptools.packages.find]
 where = ["src"]

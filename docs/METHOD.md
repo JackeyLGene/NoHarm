@@ -15,6 +15,11 @@ fixed sequence coordinate. The intended reading is:
 Version 0.1 uses a shared uniform codon baseline. It does not directly compare
 gene, transcript, CDS, and protein layers.
 
+In the broader GBE/EE research program, "frame economy" refers to a finite-memory
+process that keeps, merges, and prunes recurring vector frames. In this public
+v0.1 tool, the term is only background: the released scanner should be evaluated
+as a fixed codon-landscape residue ranking method.
+
 ## Fixed Encoder
 
 For each transcript:

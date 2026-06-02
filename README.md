@@ -10,15 +10,25 @@ list of genes and isoform pairs that may deserve biological follow-up.
 The tool does **not** make clinical claims, diagnose disease, or infer causal
 mechanisms. It produces a reproducible structural ranking.
 
+For researchers with transcript isoform FASTA files who need a first-pass
+prioritization of genes and isoform pairs.
+
+## Preprint and Contact
+
+Preprint DOI: [10.5281/zenodo.20518088](https://doi.org/10.5281/zenodo.20518088)
+
+Contact: [jackey.l.gene@outlook.com](mailto:jackey.l.gene@outlook.com)
+
 ## At A Glance
 
 ```mermaid
 flowchart TD
-    A["Transcript isoforms"] --> B["Encode each isoform<br/>as 3-mer/codon windows"]
-    B --> C["Compare with a shared baseline<br/>uniform 64-bin expectation"]
-    C --> D["Read structural residue<br/>mean |codon-harm| per isoform"]
-    D --> E["Compare residues within each gene<br/>max-min divergence"]
-    E --> F["Rank candidate genes<br/>and contrast isoform pairs"]
+    A["Transcript isoforms"] --> B["Group isoforms<br/>by gene"]
+    B --> C["Encode each isoform<br/>as 3-mer/codon windows"]
+    C --> D["Compare with a shared baseline<br/>uniform 64-bin expectation"]
+    D --> E["Read structural residue<br/>mean |codon-harm| per isoform"]
+    E --> F["Compare residues within each gene<br/>max-min divergence"]
+    F --> G["Rank candidate genes<br/>and contrast isoform pairs"]
 ```
 
 In one sentence:
@@ -58,6 +68,16 @@ For a GENCODE transcript FASTA:
 noharm scan --fasta gencode.v49.pc_transcripts.fa.gz --out results/gencode_v49 --workers 8
 ```
 
+For a small real-data demo bundled with the repo:
+
+```bash
+noharm scan --fasta data/gencode_v49_mini_80genes.fa --out results/mini_80 --workers 4
+```
+
+The bundled mini FASTA contains 80 real GENCODE v49 genes and 566 transcripts.
+It runs in about 4 seconds on the current development machine and is a
+smoke/demo subset, not the full benchmark used in the report.
+
 ## Outputs
 
 `noharm scan` writes:
@@ -73,6 +93,22 @@ Key columns:
 - `ch_std`: within-gene dispersion of isoform scores.
 - `tau_range`: spread in the lightweight residue trace.
 - `min_ch_transcript`, `max_ch_transcript`: the top contrast pair.
+
+Example output from the bundled mini dataset:
+
+```tsv
+gene        n_isoforms  ch_range  mean_ch  min_ch_transcript  max_ch_transcript
+SLC12A5     12          0.141969  0.235011 ENST00000616933.4  ENST00000413737.2
+SUPT5H      12          0.125129  0.240485 ENST00000593727.1  ENST00000594729.5
+ANKRD18B    7           0.123465  0.222918 ENST00000703167.1  ENST00000605687.1
+CARM1       9           0.117099  0.227537 ENST00000590039.5  ENST00000588947.5
+ZNF384      12          0.115998  0.226833 ENST00000535485.5  ENST00000545946.1
+SRP14       6           0.114499  0.244790 ENST00000559081.1  ENST00000560773.5
+PRG4        12          0.113135  0.248118 ENST00000862631.1  ENST00000367482.8
+SEPTIN11    10          0.094676  0.213577 ENST00000512778.1  ENST00000502401.1
+SH3BGR      12          0.094176  0.232811 ENST00000440288.6  ENST00000423596.5
+PAXBP1      10          0.085664  0.220020 ENST00000445049.1  ENST00000573680.5
+```
 
 ## Research Preview Results
 

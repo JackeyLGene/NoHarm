@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "noharm"
-version = "0.1.0"
-description = "Annotation-free prioritization of structurally divergent transcript isoforms."
+version = "0.2.0"
+description = "Annotation-free structural screening of transcript isoform and region divergence."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
   { name = "Jackey L. Gene" }
 ]
 license = "MIT"
-keywords = ["bioinformatics", "transcriptomics", "isoforms", "alternative-splicing", "frame-economy"]
+keywords = ["bioinformatics", "transcriptomics", "isoforms", "alternative-splicing", "frame-economy", "structural-spectroscopy"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",

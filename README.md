@@ -1,50 +1,81 @@
 # NoHarm
 
-Annotation-free prioritization of structurally divergent transcript isoforms.
+Annotation-free structural screening for transcript isoforms and genomic
+regions.
 
-NoHarm is a lightweight bioinformatics scanner for ranking genes whose transcript
-isoforms diverge strongly in a fixed 3-mer codon-landscape coordinate. It is
-designed as a low-cost triage layer: run it on a transcript FASTA, get a short
-list of genes and isoform pairs that may deserve biological follow-up.
+NoHarm is a lightweight bioinformatics scanner for transcript FASTA files. It
+groups transcript isoforms by gene, encodes each isoform as sliding 3-mer/codon
+windows, and reports a structural coordinate map:
 
-The tool does **not** make clinical claims, diagnose disease, or infer causal
-mechanisms. It produces a reproducible structural ranking.
+- `ch_range`: a static codon-landscape residue against a shared uniform 64-bin
+  baseline.
+- `merge_range`: a frame-economy response, measured as the within-gene range of
+  centroid-memory merge rates across isoforms.
+- `drift_range`, `churn_range`, `tau_range`: additional detector-response
+  traces for follow-up analysis and region-level spectra.
 
-For researchers with transcript isoform FASTA files who need a first-pass
-prioritization of genes and isoform pairs.
+The practical use case is first-pass triage:
 
-## Preprint and Contact
+> I have many transcript isoforms, candidate genes, or loci. Which ones deserve
+> closer inspection before expensive biological follow-up?
 
-Preprint DOI: [10.5281/zenodo.20518088](https://doi.org/10.5281/zenodo.20518088)
+NoHarm does not make clinical claims, diagnose disease, or infer causal
+mechanisms. It produces reproducible structural coordinates and contrast pairs
+for follow-up.
+
+## Status
+
+Research preview, June 2026.
+
+Current release posture: v0.2 is a corrected baseline, not the next major
+outreach release. A calibrated dual-axis SHP coordinate has now been validated
+in the companion GeneGrammar work; the next intended public feature release is
+v0.3, after that coordinate is exposed as an optional `--dual` scan mode in
+NoHarm.
+
+Legacy preprint DOI: [10.5281/zenodo.20518088](https://doi.org/10.5281/zenodo.20518088)
 
 Contact: [jackey.l.gene@outlook.com](mailto:jackey.l.gene@outlook.com)
+
+Open discussion is welcome. If you have transcript isoform FASTA files, region
+sets, matched-null suggestions, or a biological case where this kind of
+annotation-free structural triage might be useful, please open an issue or
+contact me by email. The current repo is deliberately small so that other
+researchers can inspect, criticize, and adapt the method.
 
 ## At A Glance
 
 ```mermaid
 flowchart TD
-    A["Transcript isoforms"] --> B["Group isoforms<br/>by gene"]
-    B --> C["Encode each isoform<br/>as 3-mer/codon windows"]
-    C --> D["Compare with a shared baseline<br/>uniform 64-bin expectation"]
-    D --> E["Read structural residue<br/>mean |codon-harm| per isoform"]
-    E --> F["Compare residues within each gene<br/>max-min divergence"]
-    F --> G["Rank candidate genes<br/>and contrast isoform pairs"]
+    A["Transcript isoform FASTA"] --> B["Group isoforms by gene"]
+    B --> C["Encode 3-mer/codon windows"]
+    C --> D["Static coordinate: ch_range"]
+    C --> E["Frame-economy coordinates"]
+    C --> K["SHP dual-axis coordinate (planned v0.3)"]
+    E --> F["merge_range / drift_range / churn_range"]
+    D --> G["Structural gene map"]
+    F --> G
+    K --> G
+    G --> H["Gene and isoform-pair triage"]
+    G --> I["Region spectra"]
+    I --> J["Matched region review"]
 ```
 
 In one sentence:
 
-> NoHarm asks how much the codon landscapes of isoforms from the same gene
-> differ after being projected onto a shared baseline.
+> NoHarm asks whether isoforms from the same gene diverge in static codon
+> landscape, in detector-level processing response, or in both.
 
 ## Why This Exists
 
 Long-read transcriptomics and modern genome annotation produce very large
-isoform sets. The hard question is often not "are there isoforms?", but:
+isoform sets. The bottleneck is often prioritization: a lab may already have
+hundreds or thousands of transcript candidates, but only a small subset can be
+validated with proteomics, Ribo-seq, reporter assays, localization experiments,
+or perturbation studies.
 
-> Which genes have isoforms whose codon landscapes diverge enough to deserve a
-> closer look?
-
-NoHarm provides one annotation-free coordinate for that triage problem.
+NoHarm gives a low-prior view that does not require expression values, GO terms,
+disease labels, protein domains, or conservation scores.
 
 ## Quick Start
 
@@ -57,7 +88,7 @@ noharm scan --fasta data/demo_isoforms.fa --out results/demo
 
 Or without installation:
 
-```bash
+```powershell
 $env:PYTHONPATH="src"
 python -m noharm scan --fasta data/demo_isoforms.fa --out results/demo
 ```
@@ -68,6 +99,12 @@ For a GENCODE transcript FASTA:
 noharm scan --fasta gencode.v49.pc_transcripts.fa.gz --out results/gencode_v49 --workers 8
 ```
 
+To rank by the primary frame-economy response coordinate:
+
+```bash
+noharm scan --fasta gencode.v49.pc_transcripts.fa.gz --out results/gencode_v49_merge --workers 8 --rank-by merge_range
+```
+
 For a small real-data demo bundled with the repo:
 
 ```bash
@@ -75,114 +112,151 @@ noharm scan --fasta data/gencode_v49_mini_80genes.fa --out results/mini_80 --wor
 ```
 
 The bundled mini FASTA contains 80 real GENCODE v49 genes and 566 transcripts.
-It runs in about 4 seconds on the current development machine and is a
-smoke/demo subset, not the full benchmark used in the report.
+It runs in about 4 seconds on the current development machine and is a demo
+subset, not the full benchmark used in the report.
 
 ## Outputs
 
 `noharm scan` writes:
 
-- `gene_divergence.tsv` — gene-level isoform divergence ranking.
-- `isoform_scores.tsv` — per-transcript scores.
-- `summary.json` — parameters, distribution, and top genes.
-- `report.md` — small human-readable report.
+- `gene_divergence.tsv`: gene-level isoform divergence ranking.
+- `isoform_scores.tsv`: per-transcript scores.
+- `summary.json`: parameters, distributions, and top genes.
+- `report.md`: small human-readable report.
 
-Key columns:
+Example `gene_divergence.tsv` columns:
 
-- `ch_range`: max isoform mean cross-harm minus min isoform mean cross-harm.
-- `ch_std`: within-gene dispersion of isoform scores.
-- `tau_range`: spread in the lightweight residue trace.
-- `min_ch_transcript`, `max_ch_transcript`: the top contrast pair.
-
-Example output from the bundled mini dataset:
-
-```tsv
-gene        n_isoforms  ch_range  mean_ch  min_ch_transcript  max_ch_transcript
-SLC12A5     12          0.141969  0.235011 ENST00000616933.4  ENST00000413737.2
-SUPT5H      12          0.125129  0.240485 ENST00000593727.1  ENST00000594729.5
-ANKRD18B    7           0.123465  0.222918 ENST00000703167.1  ENST00000605687.1
-CARM1       9           0.117099  0.227537 ENST00000590039.5  ENST00000588947.5
-ZNF384      12          0.115998  0.226833 ENST00000535485.5  ENST00000545946.1
-SRP14       6           0.114499  0.244790 ENST00000559081.1  ENST00000560773.5
-PRG4        12          0.113135  0.248118 ENST00000862631.1  ENST00000367482.8
-SEPTIN11    10          0.094676  0.213577 ENST00000512778.1  ENST00000502401.1
-SH3BGR      12          0.094176  0.232811 ENST00000440288.6  ENST00000423596.5
-PAXBP1      10          0.085664  0.220020 ENST00000445049.1  ENST00000573680.5
+```text
+gene    n_isoforms    ch_range    merge_range    drift_range    churn_range    contrast_metric    min_contrast_transcript    max_contrast_transcript
 ```
 
-## Research Preview Results
+Key fields:
 
-The June 2026 GENCODE v49 scan processed 245,535 protein-coding transcripts,
-covering 17,903 multi-isoform genes. The resulting distribution had a small
-extreme tail: P99 `Delta |codon-harm| = 0.0586`, with only 29 genes above `0.1`.
+- `ch_range`: max isoform mean codon-harm minus min isoform mean codon-harm.
+- `merge_range`: max isoform merge rate minus min isoform merge rate.
+- `drift_range`: range of centroid-norm drift across isoforms.
+- `churn_range`: range of frame-count churn across isoforms.
+- `contrast_metric`: the metric used to choose the reported contrast pair.
+- `min_contrast_transcript`, `max_contrast_transcript`: the isoform pair for
+  the active ranking coordinate.
+- `min_ch_transcript`, `max_ch_transcript`: the static `ch_range` contrast pair.
 
-Top matched-null genes include known biologically structured loci such as
-`SLC39A11`, `MED12`, `SRP14`, `FLOT1`, `HNRNPA1`, and `HLA-F`, plus
-under-characterized candidates such as `ANKRD18B`, `SH3BGR`, `SEPTIN11`, and
-`PAXBP1`.
+## Current GENCODE Result (v0.2 warm-start)
+
+**Important**: v0.2 adds a pre-warm step (32 uniform-zero vectors) before processing
+each isoform. This eliminates a cold-start artifact that suppressed `merge_range`
+values in v0.1 and inflated the apparent sparsity of the frame-economy coordinate.
+`ch_range` (static L2) is unaffected by this change.
+
+The June 2026 GENCODE v49 scan (warm-start) processed 245,535 protein-coding
+transcript records covering 17,903 multi-isoform genes.
+
+Static coordinate:
+
+- `ch_range` P99 = 0.0586 (unchanged).
+- 29 genes exceed `ch_range > 0.1`.
+
+Frame-economy coordinate (warm-start corrected):
+
+- `merge_range` P50 = 0.297.
+- `merge_range` P99 = 0.694.
+- No genes at zero; the cold-start floor has been removed.
+
+Coordinate relationship (warm-start corrected):
+
+- Spearman between `ch_range` and `merge_range` is about 0.62 (was 0.21 in v0.1; the cold-start inflated apparent independence).
+- The two coordinates remain distinct but are now moderately correlated.
+
+Top genes by `merge_range` (warm-start): RYR3, GRIN2A, TNXB, ATRX, CREBBP, NRXN1 -
+large, structurally complex genes with known disease associations.
+
+This is a substantial correction. See [docs/EXPERIMENT_REPORT.md] for details.
 
 See:
 
 - [Experiment Report](docs/EXPERIMENT_REPORT.md)
-- [Top 20 Annotation](docs/TOP20_ANNOTATION.md)
-- [Top 20 TSV](data/gencode_v49_top20.tsv)
-- [Workflow](docs/WORKFLOW.md)
 - [Method Notes](docs/METHOD.md)
+- [Workflow](docs/WORKFLOW.md)
+- [Roadmap](docs/ROADMAP.md)
+- [GeneGrammar / SHP Bridge](docs/GENEGRAMMAR_BRIDGE.md)
+- [Static Top 20 Annotation](docs/TOP20_ANNOTATION.md)
 
-## Default Method
+## GeneGrammar / SHP Bridge
 
-The public scanner intentionally fixes the encoder:
+The current NoHarm CLI reports static and frame-economy response coordinates.
+The next coordinate comes from GeneGrammar: a calibrated SHP readout that
+compares two views of the same nucleotide stream:
 
-1. Split each transcript into non-overlapping 3-mer positions.
-2. Slide a 30-codon window across the transcript.
-3. Convert each window into a normalized 64-dimensional 3-mer vector.
-4. Subtract the uniform 64-bin baseline.
-5. Average the vector magnitude over windows to score each isoform.
-6. Rank each gene by the range of isoform scores.
+- chroma: which 3-mers are present in a local window;
+- rhythm: which 3-mer transitions occur in that window;
+- cross-harm: Jaccard distance between the two binary activation sets;
+- fixed_wit: event rate above a fair-IID threshold (`theta_0 = 0.0999` for
+  k=4, n=3, D=64, W=128).
 
-No GO terms, disease labels, expression values, protein domains, or genetic-code
-semantics are used by the default ranking.
+In a full human protein-coding genome scan, this SHP coordinate produced a
+CDS/UTR structural matrix across 19,491 genes and 224,518 transcript isoforms.
+It is not a replacement for the current NoHarm isoform-divergence scanner; it
+is the planned v0.3 `--dual` extension for region and gene-regime screening.
 
-## Current Interpretation
+## Case-Study Directions
+
+Current work uses the coordinate map in two exploratory directions:
+
+- **Gene and region recognition.** Known structural, secreted, immune, and
+  regulatory loci appear to occupy different regions of the NoHarm coordinate
+  map. This is being developed as region-level structural spectroscopy.
+- **AD-associated gene audit.** Early Alzheimer's disease analyses suggest that
+  global disease-label enrichment is strongly affected by annotation and study
+  visibility, while tau-related and amyloid-processing genes may show different
+  detector-response directions. This remains exploratory and non-clinical.
+- **Protein folding extension.** A protein-structure axis is under active
+  research. Early SHP-Fold tests suggest that changing the rhythm axis from
+  linear sequence adjacency to 3D contact structure can reveal signals invisible
+  to a 1D scan. This is not part of the public NoHarm CLI yet.
+
+## Interpretation
 
 NoHarm should be read as:
 
-> An annotation-free prioritization layer for transcript isoform codon-landscape divergence.
+> an annotation-free structural triage layer for transcript isoform sets, with
+> a static codon-landscape readout and frame-economy detector-response readouts.
 
-The score is a candidate generator. Known high-ranking genes can calibrate the
-signal; under-characterized high-ranking genes become follow-up candidates.
-Because codon usage can influence downstream biology, high-ranking genes may be
-useful candidates for follow-up, but the v0.1 scanner does not directly model
-gene-to-protein translation.
+`merge_range`, `drift_range`, and related traces are properties of the NoHarm
+detector's response to codon-window streams. They are not direct evidence that
+cellular translation machinery uses the same mechanism.
 
 ## Important Caveats
 
-- The standalone public scanner reproduces the primary `Delta |codon-harm|`
-  ranking coordinate. It compares isoforms to a shared uniform baseline; it does
-  not yet implement the deeper gene/transcript-to-CDS/protein alignment planned
-  for later NoHarm work.
-- Matched null controls currently cover isoform count, transcript length range,
-  and mean codon-harm. GC matching is not yet included.
-- CDS/full comparisons currently use a longest-ORF proxy, not GTF-annotated CDS
-  coordinates.
-- Biological annotations are for hypothesis generation and require independent
-  validation.
+- The current defaults are fixed for reproducible screening, not optimized
+  biology.
+- `merge_range` and other response coordinates depend on detector parameters
+  (`memory_cap`, `merge_radius`, window size, and stride).
+- Biological annotations are post-hoc and hypothesis-generating.
+- Disease case studies are exploratory and non-clinical.
+- Region analyses require matched nulls and independent review before strong
+  claims.
 
-## Status
+## Planned Next Work
 
-Research preview, June 2026.
-
-Planned next steps:
-
-- Matched null controls by isoform count, transcript length, GC range, and mean score.
-- CDS-only and UTR-aware modes.
-- Gene-level codex construction from isoform traces.
-- Optional protein/topology annotation joins.
+- Integrate the GeneGrammar SHP dual-axis readout as an optional `--dual` mode.
+- Package a small reproducible dual-axis demo for PRB/KRTAP, HOX, MHC/HLA, and
+  matched background regions.
+- Package v0.3 as a single release containing the warm-start bugfix,
+  current static/response coordinates, and the new dual-axis coordinate.
+- GC, length, isoform-count, and visibility-matched nulls for response metrics.
+- Comparison with CAI, ENC, GC, codon-usage, and existing isoform metrics.
+- GTF-based CDS and UTR extraction.
+- Region-level spectra for known loci such as PRB/KRTAP, MHC, HOX, and selected
+  regulatory regions.
+- Protein-fold / 3D contact-map extension as a separate research track.
+- Parameter sweeps for `merge_radius`, memory capacity, window size, and stride.
+- A frozen case-study package before any manuscript submission.
 
 ## Related Work
 
 NoHarm is a practical tool extracted from a broader frame-economy research
-program. Readers interested in the underlying theory can browse the GBE project:
+program. The repo is meant to be usable without accepting any broader theory.
+Readers interested in the conceptual background can browse the GBE project:
 [https://jackeylgene.github.io/GBE](https://jackeylgene.github.io/GBE).
 
 ## License

@@ -1,11 +1,13 @@
-# Top 20 Isoform-Divergent Genes
+# Static-Coordinate Top 20 Isoform-Divergent Genes
 
-Matched-null ranking and biological annotation for the June 2026 research
-preview.
+Matched-null ranking and biological annotation for the June 2026 `ch_range`
+scan. This table reports the static codon-landscape coordinate only. For the
+new two-coordinate interpretation, including `merge_range`, see
+`docs/EXPERIMENT_REPORT.md`.
 
 Machine-readable table: `data/gencode_v49_top20.tsv`.
 
-## Ranking
+## Static `ch_range` Ranking
 
 The table below is ranked by matched-null z-score. The empirical p-value column
 uses the conservative lower-bound correction:
@@ -76,8 +78,9 @@ The same top tail also contains under-characterized candidates:
 - **PAXBP1**
 
 These are not claimed as disease genes. They are candidate genes prioritized by
-an annotation-free isoform-divergence coordinate and require independent
-experimental validation.
+the static `ch_range` coordinate and require independent experimental
+validation. Some of them are not high on the frame-economy `merge_range`
+coordinate; the two lists should be interpreted separately.
 
 ## Caveats
 
@@ -87,3 +90,5 @@ experimental validation.
 - Keyword enrichment is exploratory and should be replaced by formal GO
   enrichment before publication-grade claims.
 - This table is for hypothesis generation, not clinical interpretation.
+- This table should not be cited as the full NoHarm result after the
+  two-coordinate audit.

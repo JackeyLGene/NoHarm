@@ -1,285 +1,337 @@
-# Annotation-free prioritization of structurally divergent transcript isoforms
+# NoHarm v0.2 GENCODE Report
 
-**NoHarm: a uniform-baseline scanner for isoform codon-landscape divergence**
+**Warm-start corrected frame-economy coordinates for transcript isoform and
+region screening**
 
-*Research preview / computational note — June 2026*
+Research preview / computational note, June 2026
+
+Repository: https://github.com/JackeyLGene/NoHarm  
+Preprint DOI: https://doi.org/10.5281/zenodo.20518088
 
 ---
 
 ## Abstract
 
-We describe a zero-training computational method that scans human protein-coding transcript isoforms and ranks genes by how divergent their isoform codon landscapes are, without using expression data, disease labels, gene ontologies, or protein domain annotations. Version 0.1 uses a deliberately simple reading: each isoform is encoded as a 64-dimensional codon-frequency landscape, compared with a shared uniform expectation, and reduced to a structural residue. Per-gene divergence is the range of this residue across isoforms.
+NoHarm is a zero-training scanner for transcript isoform FASTA files. It groups
+transcript isoforms by gene and reports a compact coordinate map:
 
-A scan of 245,535 GENCODE v49 transcripts (17,903 multi-isoform genes) yields an extreme-tail distribution: only 29 genes exceed Δ|codon-harm| > 0.1 (0.16% of multi-isoform genes; P99 = 0.0586). Matched null controls (isoform count, transcript length range, mean codon-harm; GC matching not yet included) confirm that the top-ranked genes are not explained by these covariates alone. The top 20 genes by z-score include well-characterized disease-associated loci (MED12, HNRNPA1, SLC39A11) as well as poorly characterized genes (ANKRD18B, SH3BGR, SEPTIN11, PAXBP1) that constitute the method's independent predictions. Exploratory keyword enrichment suggests over-representation of transcriptional regulators.
+- `ch_range`: static codon-landscape spread against a shared uniform 64-bin
+  baseline.
+- `merge_range`: frame-economy response spread, measured as the within-gene
+  range of centroid-memory merge rates across isoforms.
+- `drift_range`, `churn_range`, `tau_range`: additional detector-response
+  traces for audit and region-level spectra.
 
-The method's reading can be interpreted simply: **Δ|codon-harm| measures how different the codon-landscape residues of isoforms from the same gene are after projection onto a shared baseline.** High divergence suggests a gene whose isoforms may deserve functional follow-up; low divergence means no large difference is detected in this specific 3-mer coordinate (functional differences through expression, domains, localization, translation, or regulation may still exist).
+The v0.2 GENCODE scan adds a warm-start correction before processing each
+isoform. This removes a cold-start artifact in v0.1 that had suppressed
+`merge_range` and made the response coordinate look artificially sparse.
+
+The corrected scan processed 245,535 GENCODE v49 protein-coding transcript
+records and 17,903 multi-isoform genes. The static coordinate remains compact
+(`ch_range` P99 = 0.0586; 29 genes exceed 0.1). The warm-start response
+coordinate is now continuous at genome scale (`merge_range` P50 = 0.2966,
+P99 = 0.6939, max = 0.9046). `ch_range` and `merge_range` are distinct but
+moderately coupled (Spearman about 0.62).
+
+The conservative result is that NoHarm provides an annotation-free structural
+triage map for transcript isoforms and regions. It does not make clinical,
+causal, or mechanistic claims.
 
 ---
 
-## 1. The Reading
+## 1. Why v0.2 Was Needed
 
-### 1.1 What Δ|codon-harm| measures
+The first public implementation exposed two useful coordinates:
 
-Each transcript isoform is read as non-overlapping 3-mers in frame 0. Each window is mapped to a 64-dimensional frequency vector (A/C/G/T at three positions). A uniform 64-bin expectation provides a common baseline. The L2 distance between actual and expected is the per-window codon-harm; the per-isoform score is the mean of this residue over windows.
+```text
+ch_range     static codon-landscape spread
+merge_range  detector-response spread
+```
 
-Per-gene divergence (Δ|codon-harm|) is the range of this value across a gene's isoforms.
+An audit found that the v0.1 response coordinate was affected by cold-start.
+Every isoform began with an empty centroid memory, so early windows were
+disproportionately treated as new frames. This artificially suppressed
+`merge_rate` and produced a large zero floor in `merge_range`.
 
-The reading can be stated in one sentence:
+v0.2 fixes this by pre-warming the frame economy with 32 uniform-zero vectors
+before each isoform's real windows are processed. This asks a clearer question:
 
-> **Δ|codon-harm| measures how different the codon-landscape residues of isoforms from the same gene are after projection onto a shared baseline.**
+> How does the detector process the isoform stream after its memory has reached
+> a saturated baseline state?
 
-High divergence → isoform choice changes the gene's codon-landscape residue → the gene enters a small extreme tail worth biological follow-up. Translation-facing consequences are plausible for some candidates, but they are not directly modeled by v0.1.
-
-Low divergence → no large structural difference is detected in this specific 3-mer coordinate. This does NOT mean the isoforms are functionally identical — differences in expression level, protein domains, subcellular localization, translation efficiency, or regulatory motifs may still exist. It means only that the codon-landscape residue is not extreme.
-
-### 1.2 What it is not
-
-- NOT a codon bias index (it uses uniform expectation, not genome-wide codon usage)
-- NOT a measure of expression or translation efficiency
-- NOT a disease predictor
-- NOT dependent on any biological database, annotation, or prior knowledge
-- NOT yet a gene/transcript-to-CDS/protein alignment model
-
-It is a **structural coordinate** — an orthogonal dimension that no existing method measures.
+`ch_range` is unaffected by this correction because it is computed before
+frame-economy processing.
 
 ---
 
 ## 2. Method
 
-### 2.1 Architecture
+### 2.1 Encoding
 
-```
-transcript sequence
-  → sliding window (30 codons, stride 6)
-  → 64-dim codon-frequency vector vs uniform expectation
-  → L2 distance = per-window |codon-harm|
-  → per-isoform mean |codon-harm| = structural residue
-  → per-gene: range(|codon-harm|) across isoforms = Δ|codon-harm|
-```
+For each transcript isoform:
 
-The full research lineage includes a Geruon frame-economy readout, but the public v0.1 scanner is intentionally narrower: it reproduces the primary Δ|codon-harm| ranking coordinate. τ is treated as secondary and should not be overinterpreted in this standalone report.
+1. Preserve frame positions and normalize bases to A/C/G/T.
+2. Read non-overlapping 3-mers in frame 0.
+3. Apply a 30-codon sliding window with stride 6.
+4. Encode each window as a 64-bin 3-mer frequency vector.
+5. Subtract a shared uniform baseline of `1/64` per bin.
 
-### 2.2 Data
+### 2.2 Static Coordinate
 
-- **Source**: GENCODE v49 protein-coding transcripts (245,535 transcripts, 20,758 genes)
-- **Multi-isoform genes**: 17,903 (genes with ≥2 transcripts)
-- **Isoforms processed**: 242,678 (after CDS length ≥60 nt filter)
-- **Encoding**: 64-dim codon frequency (A/C/G/T at 3 positions), sliding window 30 codons, stride 6
-- **Baseline**: uniform codon distribution (1/64 per bin) — common zero for all isoforms
+For each isoform:
 
-### 2.3 Matched null
-
-For each gene, a null pool is constructed from genes matched on:
-- Isoform count (log-scale, ±15%)
-- Transcript length range (±20%)
-- Mean codon-harm (±0.03)
-
-GC-content range is noted as a desired covariate but **not yet included** in the matching procedure; this is a limitation to address before stronger statistical claims.
-
-From the pool, up to 1,000 samples are drawn without replacement. Z-score is computed as (observed − null_mean) / null_std. Empirical p-value uses the lower-bound correction:
-
-```
-p = (n_exceed + 1) / (n_pool + 1)
+```text
+mean_ch = mean(L2(window residual))
 ```
 
-This ensures that small pools (e.g., pool=10 → min p ≈ 0.091) cannot produce spuriously significant p-values. Z-score is reported as the primary effect-size metric. Genes with pool_size < 10 are excluded from matched null analysis entirely.
+For each gene:
 
-### 2.4 CDS-only comparison
+```text
+ch_range = max(mean_ch) - min(mean_ch)
+```
 
-A parallel scan uses the longest ORF (ATG→stop) as a CDS proxy. The CDS/full ratio indicates whether isoform divergence is concentrated in coding regions (>1.2), non-coding UTR regions (<0.5), or both (0.5–1.2). ORF-proxy results are suggestive; GTF-annotated CDS coordinates should be used for publication-grade claims.
+This is a static codon-landscape spread across isoforms.
+
+### 2.3 Warm-Started Frame-Economy Coordinates
+
+For each isoform:
+
+1. Initialize a finite centroid memory.
+2. Process 32 uniform-zero vectors as a warm-start baseline.
+3. Process the isoform's residual-window stream.
+4. Record merge, drift, churn, tau, and novelty traces.
+
+The public response coordinate is:
+
+```text
+merge_rate = merged_windows / total_windows
+merge_range = max(merge_rate over isoforms) - min(merge_rate over isoforms)
+```
+
+Additional traces include `drift_range`, `churn_range`, `tau_range`, and
+`novelty_range`. These are detector-response coordinates. They should not be
+described as direct evidence that cellular translation machinery uses the same
+mechanism.
 
 ---
 
-## 3. Results
+## 3. Full GENCODE v49 Results
+
+Dataset and runtime:
+
+- GENCODE v49 protein-coding transcript FASTA.
+- Total FASTA records: 245,535.
+- Scored isoforms: 245,528.
+- Multi-isoform genes: 17,903.
+- Ranking metric: `merge_range`.
+- Runtime: 490.876 seconds on the development machine.
 
 ### 3.1 Distribution
 
-| Statistic | Value |
-|-----------|-------|
-| Genes with ≥2 isoforms | 17,903 |
-| P50 Δ\|codon-harm\| | 0.0131 |
-| P90 Δ\|codon-harm\| | 0.0300 |
-| P95 Δ\|codon-harm\| | 0.0376 |
-| P99 Δ\|codon-harm\| | 0.0586 |
-| Genes with Δ\|codon-harm\| > 0.1 | 29 (0.16%) |
-| Genes with Δ\|codon-harm\| > 0.2 | 4 |
-| Genes with Δ\|codon-harm\| > 0.3 | 1 (SLC39A11) |
+Warm-start corrected `merge_range` distribution:
 
-The distribution is heavily right-skewed. Only 0.16% of multi-isoform genes show extreme isoform-level codon divergence.
+| Coordinate | P50 | P90 | P95 | P99 | Max |
+|---|---:|---:|---:|---:|---:|
+| `merge_range` | 0.296631 | 0.494180 | 0.550859 | 0.693895 | 0.904641 |
 
-### 3.2 Matched null results
+Static coordinate from the matched scan:
 
-14,214 genes had sufficient matched pool size (≥10). Z-scores and corrected p-values for the top 20:
+| Coordinate | P99 | Genes above 0.1 |
+|---|---:|---:|
+| `ch_range` | 0.0586 | 29 |
 
-| Rank | Gene | n_iso | Δ\|ch\| | z | p (corrected) | pool | obs/exp |
-|------|------|-------|---------|---|---------------|------|---------|
-| 1 | SLC39A11 | 31 | 0.3278 | 26.15 | <0.004 | 259 | 7.2x |
-| 2 | MED12 | 28 | 0.2877 | 17.03 | <0.034 | 29 | 4.5x |
-| 3 | SRP14 | 6 | 0.1145 | 14.08 | <0.072 | 13 | — |
-| 4 | FLOT1 | 82 | 0.2037 | 12.39 | <0.091 | 10 | — |
-| 5 | HNRNPA1 | 77 | 0.2073 | 12.28 | <0.040 | 24 | 3.4x |
-| 6 | HLA-F | 52 | 0.1855 | 10.89 | <0.009 | 120 | — |
-| 7 | ANKRD18B | 7 | 0.1235 | 10.77 | <0.003 | 337 | 3.4x |
-| 8 | CARM1 | 9 | 0.1171 | 9.80 | <0.003 | 388 | — |
-| 9 | SH3BGR | 14 | 0.1073 | 9.62 | <0.012 | 88 | 3.0x |
-| 10 | SUPT5H | 12 | 0.1251 | 9.30 | <0.011 | 90 | — |
-| 11 | HGS | 72 | 0.1668 | 9.15 | <0.059 | 16 | — |
-| 12 | TUBGCP5 | 25 | 0.1108 | 8.97 | <0.003 | 354 | — |
-| 13 | ZNF384 | 14 | 0.1160 | 8.94 | <0.003 | 361 | — |
-| 14 | SLC12A5 | 12 | 0.1420 | 8.70 | <0.009 | 109 | — |
-| 15 | G3BP2 | 94 | 0.1656 | 8.35 | <0.039 | 25 | — |
-| 16 | PRG4 | 12 | 0.1131 | 8.12 | <0.048 | 20 | — |
-| 17 | SEPTIN11 | 10 | 0.0947 | 7.92 | <0.003 | 351 | 2.6x |
-| 18 | FBL | 35 | 0.0867 | 7.78 | <0.063 | 15 | — |
-| 19 | MT3 | 5 | 0.0512 | 7.68 | <0.091 | 10 | — |
-| 20 | PAXBP1 | 10 | 0.0857 | 7.33 | <0.003 | 442 | 2.4x |
+Interpretation:
 
-**Key**: p = (exceed+1)/(pool+1) lower-bound correction. Z-score is the primary effect-size metric. obs/exp shown for genes with sufficient null pool where expected range (null_mean + 2×null_std) > 0.01.
+- `merge_range` is no longer sparse after warm-start.
+- The old v0.1 zero floor was an instrument-state artifact.
+- `ch_range` remains a compact static residue.
+- The response coordinate now highlights broad isoform-processing divergence,
+  especially in large and structurally complex genes.
 
-**Important caveat on p-values**: For genes with small matched pools (MED12 pool=29, SRP14 pool=13, FLOT1 pool=10, MT3 pool=10), the minimum achievable p-value under the correction is limited by pool size. For these genes, the z-score is the more informative metric. The notation "<pool_limit" indicates that no matched null sample exceeded the observed score, but statistical significance cannot be claimed at conventional thresholds due to limited null sample size.
+### 3.2 Coordinate Relationship After Correction
 
-**Correction applied 2026-06-03**: Previous version reported "p < 0.001" for all top genes based on raw exceedance ratio. Current version uses (exceed+1)/(pool+1) correction per reviewer feedback.
+The warm-start correction changes the headline from "nearly independent" to
+"distinct but coupled":
 
-### 3.3 CDS/full comparison (ORF-proxy)
+```text
+v0.1 cold-start:
+merge_range P50 = 0
+83% of genes at zero
+Spearman ch_range vs merge_range about 0.21
 
-| Type | CDS/full ratio | Interpretation | Examples |
-|------|---------------|----------------|----------|
-| UTR-associated | < 0.5 | Isoform divergence concentrated in non-coding regions (ORF-proxy) | SLC39A11 (0.11), TUBGCP5 (0.27) |
-| CDS-associated | > 1.2 | Divergence concentrated in coding regions (ORF-proxy) | SRP14 (1.93), MT3 (1.91), MED12 (1.46) |
-| Mixed | 0.5–1.2 | Comparable divergence in both | HNRNPA1 (0.77), PRG4 (1.00) |
+v0.2 warm-start:
+merge_range P50 = 0.2966
+no zero floor
+Spearman ch_range vs merge_range about 0.62
+```
 
-**Caveat**: CDS is approximated by longest ORF, not GTF-annotated CDS. "UTR-associated" and "CDS-associated" are suggestive labels; publication-grade claims require GTF-based CDS extraction.
-
-### 3.4 Exploratory keyword enrichment
-
-A simple keyword-based category lookup on gene symbols (not a formal GO enrichment analysis) suggests over-representation of transcriptional regulators (MED12, MED15, FOXP1, FOXP2, SUPT5H, KMT2D, TBP, ARID1A — 8/29 top genes vs 0.3 expected by chance). This is reported as an exploratory observation. Formal GO enrichment using g:Profiler, Enrichr, or GOATOOLS with standard annotation databases should replace this before publication.
+This is a better result, not a weaker one. It means the response coordinate is
+not a detached artifact. It shares structure with the static codon landscape,
+while still exposing detector-level differences that are not identical to
+`ch_range`.
 
 ---
 
-## 4. Independent Predictions
+## 4. Top Warm-Start Response Genes
 
-NoHarm identifies four genes with extreme isoform divergence whose biological functions are currently poorly characterized. These constitute testable predictions.
+Top genes by `merge_range`:
 
-### Prediction 1: ANKRD18B (z=10.77, obs/exp=3.4×, pool=337)
+| Rank | Gene | Isoforms | `merge_range` | `mean_ch` | Length Range |
+|---:|---|---:|---:|---:|---:|
+| 1 | RYR3 | 12 | 0.904641 | 0.208323 | 15468 |
+| 2 | GRIN2A | 9 | 0.902708 | 0.206568 | 14606 |
+| 3 | TNXB | 23 | 0.900449 | 0.213402 | 13800 |
+| 4 | ATRX | 15 | 0.891554 | 0.215850 | 11065 |
+| 5 | CREBBP | 7 | 0.889952 | 0.203703 | 10690 |
+| 6 | FBXL20 | 10 | 0.887899 | 0.195670 | 10229 |
+| 7 | ZEB2 | 42 | 0.884037 | 0.204697 | 9483 |
+| 8 | NRXN1 | 29 | 0.882825 | 0.205981 | 9275 |
+| 9 | TNC | 30 | 0.877394 | 0.205993 | 8431 |
+| 10 | FASN | 13 | 0.877270 | 0.215185 | 8388 |
+| 11 | SPTAN1 | 34 | 0.875476 | 0.206022 | 8129 |
+| 12 | DMD | 42 | 0.873255 | 0.201632 | 13869 |
+| 13 | HS1BP3 | 12 | 0.871560 | 0.206263 | 7650 |
+| 14 | PLCB1 | 19 | 0.867965 | 0.204609 | 7223 |
+| 15 | GRIN2B | 5 | 0.867806 | 0.200071 | 30531 |
+| 16 | SMARCA2 | 61 | 0.865584 | 0.213976 | 6961 |
+| 17 | KIF5A | 24 | 0.862851 | 0.214359 | 6691 |
+| 18 | SLC12A5 | 12 | 0.855610 | 0.235011 | 6066 |
+| 19 | TMEM255B | 20 | 0.854925 | 0.221703 | 6044 |
+| 20 | NRDE2 | 7 | 0.847253 | 0.201031 | 13876 |
 
-**What is known**: Contains a DUF3496 domain (Domain of Unknown Function). Only one functional study exists (promoter hypermethylation in lung cancer). No GO biological process annotation. Subcellular localization unknown.
-
-**Prediction**: The extreme isoform-level codon-landscape divergence (comparable to HNRNPA1 at 3.4× expected) suggests that ANKRD18B isoforms may deserve functional follow-up. Tissue-specific isoform expression and protein-level validation are warranted.
-
-### Prediction 2: SH3BGR (z=9.62, obs/exp=3.0×, pool=88)
-
-**What is known**: Thioredoxin-fold protein at 21q22.3 (Down syndrome critical region). Associated with sarcomere Z-line assembly. No major disease association established.
-
-**Prediction**: The 14 isoforms span a wide codon-usage range. Isoform-specific functions in cardiac and skeletal muscle may exist. Its location in the Down syndrome critical region makes isoform dysregulation a candidate mechanism for heart or muscle phenotypes.
-
-### Prediction 3: SEPTIN11 (z=7.92, obs/exp=2.6×, pool=351)
-
-**What is known**: Septin family member. Limited isoform-specific literature.
-
-**Prediction**: Robust signal (largest null pool among predictions) suggests isoforms may have distinct roles in membrane dynamics or cytokinesis.
-
-### Prediction 4: PAXBP1 (z=7.33, obs/exp=2.4×, pool=442)
-
-**What is known**: PAX3/PAX7 binding partner. Historically "gene of unknown clinical significance." First disease mutation reported in 2017 (developmental delay with hypotonia).
-
-**Prediction**: The isoform divergence (largest null pool = 442) suggests broader functional impact beyond currently documented muscle development roles.
-
----
-
-## 5. Prior Phases (Historical Record)
-
-### Phase 1: Architecture (2026-06-01–02)
-
-Six BiasField-based approaches (blend_into, repel, Codex lookup, PrincipleCodex, passive deposition ×2) all produced zero measurable effect. Root cause: BiasField is dead vector averaging without frame economy.
-
-**Breakthrough**: Cross-harm vectors as input to an independent Geruon with its own frame economy. Harm is not stored — it is the Geruon's temporal (τ) response to deviation from stored normal structure. Analogous to immune self/non-self discrimination.
-
-A P0 encoding bug (`ord(ch)%4` → C/G collision, only 27/64 bins used) was identified and fixed (`BASE[ch]`, full 64 bins).
-
-### Phase 2: Robustness (2026-06-02)
-
-Paired differential experiments (same sequence + same window positions → clean vs noisy) across five perturbation types all yielded ΔΔτ ≈ 0. The Geruon frame economy is structurally robust to random perturbation; its τ dynamics are dominated by internal periodic organization, not external noise. This finding is reported as a positive result: **structure constitutes its own robustness.**
-
-Adversarial perturbations (train-then-attack with L3 chain pre-building) confirmed the same pattern. Single-Geruon + synthetic-sequence + artificial-noise approaches were exhausted. Causal harm detection requires real structural operations and multi-encoding-system comparison.
+These genes should be read as high-priority structural candidates, not as
+validated biological discoveries. Many are large, multi-isoform, neural,
+chromatin, extracellular, or disease-associated genes, which makes them useful
+manual-review targets.
 
 ---
 
-## 6. Limitations
+## 5. Structural Coordinate Map
 
-1. **Small matched pools for some top genes** (MED12 pool=29, SRP14 pool=13, FLOT1 pool=10). Z-scores for these genes may be inflated. Larger null pools require relaxed matching criteria or a different null-generation strategy.
+The current map is:
 
-2. **GC matching not yet included** in matched null. GC content correlates with codon usage and may confound some rankings.
+```text
+                         high ch_range
+                              |
+          static-heavy        |        dual-heavy
+          candidates          |        candidates
+                              |
+low response -----------------+----------------- high response
+                              |
+          background          |        response-heavy
+          / no signal         |        candidates
+                              |
+                         low ch_range
+```
 
-3. **CDS approximated by longest ORF**, not GTF-annotated CDS coordinates. CDS/full ratios should be recomputed with real CDS annotations.
+The most conservative public claim is:
 
-4. **GO enrichment is keyword-based**, not a formal enrichment analysis. Standard tools (g:Profiler, Enrichr, GOATOOLS) should be used before publication.
+> NoHarm exposes a static codon-landscape coordinate and warm-start corrected
+> detector-response coordinates. These coordinates are distinct but moderately
+> coupled and can be used for first-pass isoform and region triage.
 
-5. **τ signal interpretation incomplete**. τ and |codon-harm| are partially decoupled (e.g., lncRNA τ=0.72, pc τ=0.62 despite similar |codon-harm|). The τ readout may carry complementary information not captured by |codon-harm| alone.
+The stronger working hypothesis is:
 
-6. **tRNA sample too small** (6 genes) — sliding window incompatible with short sequences (72 nt).
-
-7. **Predictions untested**. The four poorly characterized genes require independent experimental validation.
-
-8. **No active restraint demonstrated**. NoHarm detects structural divergence but has not been shown to modulate trajectories.
-
----
-
-## 7. Data & Code
-
-### Output files
-
-| File | Content |
-|------|---------|
-| `RNA/derived/noharm_isoform_divergence.json` | Full-transcript: 17,903 genes |
-| `RNA/derived/noharm_isoform_cds.json` | ORF-proxy CDS: 17,848 genes |
-| `RNA/derived/noharm_isoform_full.json` | Full-transcript (from CDS scan) |
-| `RNA/derived/noharm_isoform_stats.json` | Matched null statistics |
-
-### Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `code/_noharm_genome_scan.py` | Full genome scan (parallel) |
-| `code/_noharm_cds.py` | CDS-only scan + side-by-side |
-| `code/_noharm_stats.py` | Matched null + enrichment |
-| `code/_noharm_rna_isoform.py` | Pilot isoform comparison |
-| `code/_noharm_rna.py` | RNA type baseline calibration |
-| `code/_noharm_rna_perturb.py` | Systematic perturbation |
-| `code/_noharm_dual.py` | WTC dual-stream + paired control |
-| `code/_noharm_genes.py` | Multi-gene paired control |
-| `code/_noharm_struct.py` | Structural noise (base remapping) |
-| `code/_noharm_adversarial.py` | Adversarial perturbation |
-
-### Documents
-
-| File | Content |
-|------|---------|
-| `noharm/docs/EXPERIMENT_REPORT.md` | This report |
-| `noharm/docs/MILESTONES.md` | Milestone log |
-| `noharm/docs/TOP20_ANNOTATION.md` | Top 20 annotation table |
-| `noharm/README.md` | Project overview |
+> Genes or regions extreme in one or more coordinates may deserve biological
+> follow-up, especially when they survive matched nulls and comparison with
+> standard sequence metrics.
 
 ---
 
-## 8. Release Status
+## 6. Region Spectra And Case Studies
 
-**Recommended**: research preview / computational note / forum draft.
+The same gene-level coordinates can be aggregated into region spectra. This
+turns NoHarm from a top-gene list into a first-pass region classifier.
 
-**Not recommended**: full biology paper without:
-- Formal GO enrichment (g:Profiler / Enrichr / GOATOOLS)
-- GTF-based CDS extraction for CDS/full ratio
-- GC matching in null model
-- Larger null pools for top-ranked genes (relaxed matching or parametric null)
-- Independent experimental validation of predictions
+Current exploratory directions:
 
-**Strengths for release**:
-- GENCODE-scale scan (245K transcripts, 17.9K multi-isoform genes)
-- Clean extreme-tail distribution (P99=0.059, only 29 genes >0.1)
-- Top genes show clear biological texture (MED12, HNRNPA1, SLC39A11)
-- Unknown/cold candidates identified (ANKRD18B, SH3BGR, SEPTIN11, PAXBP1)
-- Orthogonal screening coordinate — no dependence on expression, disease labels, GO, or domains
-- One-sentence interpretability: "measures isoform codon-landscape divergence against a shared baseline"
+- structural-production loci such as PRB/KRTAP-like regions;
+- immune-diversity loci such as MHC-like regions;
+- regulatory-flexibility loci such as transcription-factor or developmental
+  clusters;
+- maintenance/stability loci used in disease-audit case studies.
+
+Correct current reading:
+
+> NoHarm coordinates provide candidate region spectra that can be tested against
+> matched loci and known biological annotations.
 
 ---
 
-*Generated 2026-06-03 | NoHarm project: `noharm/` | EE architecture: `CLAUDE.md`*
+## 7. AD Audit Boundary
+
+AD-associated gene analysis is useful as an exploratory case study, not as a
+clinical result.
+
+Current working interpretation:
+
+- raw disease-set enrichment can be inflated by annotation depth and study
+  visibility;
+- visibility-matched analysis is required before any disease-level claim;
+- tau-related, amyloid-processing, immune, and lysosomal genes may occupy
+  different response directions within an AD-associated set;
+- no individual gene should be presented as a validated NoHarm disease
+  discovery without external evidence and multiple-testing correction.
+
+The AD case is therefore best used to demonstrate careful visibility-aware
+evaluation, not to market NoHarm as a disease predictor.
+
+---
+
+## 8. Limitations
+
+1. **Matched nulls are still needed for strong claims.** GC, length, isoform
+   count, gene density, and annotation visibility should all be controlled.
+
+2. **Response coordinates depend on detector parameters.** Window size, memory
+   cap, merge radius, stride, and warm-start length must be stress-tested.
+
+3. **Biological annotation remains post-hoc.** Named gene categories are
+   hypothesis-generating texture, not validation.
+
+4. **No clinical claims.** The tool does not diagnose disease, predict disease,
+   or establish causality.
+
+5. **No mechanistic translation claim.** The detector response is a structural
+   computation over sequence windows, not a direct model of ribosome behavior.
+
+---
+
+## 9. Recommended Public Framing
+
+Good:
+
+> I built a minimal transcript-isoform scanner with a static codon-landscape
+> coordinate and warm-start corrected detector-response coordinates. On GENCODE
+> v49, these coordinates are distinct but moderately coupled and nominate
+> different genes and regions for follow-up. I am looking for validation advice
+> and biological criticism.
+
+Avoid:
+
+> This proves translation machinery uses different processing strategies.
+
+Avoid:
+
+> These are disease genes or validated functional discoveries.
+
+---
+
+## 10. Next Controls
+
+For the next public tool release, prioritize:
+
+1. GC-, length-, isoform-count-, and visibility-matched nulls for response
+   coordinates.
+2. Comparison with CAI, ENC, GC, codon-usage, conservation, and existing
+   isoform-prioritization metrics.
+3. GTF-based CDS and UTR extraction.
+4. Parameter sweeps for `merge_radius`, memory capacity, window size, stride,
+   and warm-start length.
+5. Region-level matched nulls.
+6. Independent biological review of high-response, high-static, and dual-heavy
+   candidates.
+
+---
+
+Generated 2026-06-04. This document supersedes the v0.1 cold-start report.
